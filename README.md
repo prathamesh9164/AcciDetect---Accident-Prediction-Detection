@@ -334,7 +334,7 @@ This project is for educational and research purposes. Feel free to use, modify,
 
 ## 👨‍💻 Author
 
-**Prathamesh** — [@prathamesh9164](https://github.com/prathamesh9164)
+**Prathamesh Talele** — [@prathamesh9164](https://github.com/prathamesh9164)
 
 ---
 
