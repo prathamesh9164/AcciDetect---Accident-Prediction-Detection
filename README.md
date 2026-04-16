@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black" />
   <img src="https://img.shields.io/badge/YOLOv8-ultralytics-ff6b35?style=for-the-badge" />
   <img src="https://img.shields.io/badge/WebSocket-Django%20Channels-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Last%20Updated-April%202026-blueviolet?style=for-the-badge" />
 </p>
 
 > **AcciDetect** is an AI-powered road accident detection and prediction system. It uses **YOLOv5/YOLOv8** object detection and a **physics-based collision probability model** to analyze pre-recorded traffic videos or real-time webcam/CCTV feeds — tracking vehicles, estimating speeds, and predicting collisions before they happen.
@@ -227,6 +228,8 @@ Base URL: `http://localhost:8000/api/`
 | `GET` | `/api/analyses/{id}/download_clip/` | Download accident clip |
 | `GET` | `/api/analyses/{id}/download_csv/` | Download vehicle data as CSV |
 | `DELETE` | `/api/analyses/{id}/delete_analysis/` | Delete analysis and all files |
+| `GET` | `/api/health/` | Health-check — returns server status & analysis counts |
+| `POST` | `/api/test-upload/` | Debug helper — echoes back received file/data keys |
 
 ### WebSocket — Live Detection
 
@@ -339,3 +342,9 @@ This project is for educational and research purposes. Feel free to use, modify,
 ---
 
 <p align="center">Made with ❤️ using YOLOv8, Django Channels, and React</p>
+
+---
+
+## 📋 Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for a full history of releases and changes.

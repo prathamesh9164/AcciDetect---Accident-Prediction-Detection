@@ -1,7 +1,22 @@
+"""
+detection/views.py
+==================
+Django REST Framework ViewSets and utility views for the AcciDetect detection app.
+
+Endpoints
+---------
+- VideoAnalysisViewSet  : CRUD + custom actions (status, vehicles, graph_data, downloads, delete)
+- VehicleViewSet        : Read-only vehicle data, filterable by analysis_id
+- AccidentEventViewSet  : Read-only accident events, filterable by analysis_id
+- health_check          : Simple GET /api/health/ for uptime monitoring
+- test_upload           : Debug helper for diagnosing file-upload issues
+"""
+
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.http import FileResponse
+from django.utils import timezone
 from .models import VideoAnalysis, Vehicle, AccidentEvent
 from .serializers import (
     VideoAnalysisSerializer,
@@ -13,14 +28,16 @@ from .serializers import (
 from .tasks import process_video_background
 import logging
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
+# Initialise logger here so it is available to every view in this module,
+# including test_upload which appears before the ViewSet definitions.
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 def test_upload(request):
     """
-    Test endpoint to debug file upload issues
+    Debug endpoint to diagnose file-upload issues.
+    POST a multipart/form-data body; the response echoes back the keys received
+    in FILES and POST/data so you can confirm the client is sending the right field names.
     """
     logger.info("=== TEST UPLOAD ENDPOINT ===")
     logger.info(f"Request method: {request.method}")
@@ -28,21 +45,19 @@ def test_upload(request):
     logger.info(f"FILES keys: {list(request.FILES.keys())}")
     logger.info(f"POST keys: {list(request.POST.keys())}")
     logger.info(f"data keys: {list(request.data.keys())}")
-    
+
     if 'video_file' in request.FILES:
         video = request.FILES['video_file']
         logger.info(f"Video file found: {video.name}, size: {video.size} bytes")
     else:
-        logger.warning("No video_file in request.FILES")
-    
+        logger.warning("No 'video_file' key found in request.FILES")
+
     return Response({
-        'message': 'Test endpoint',
+        'message': 'Test upload endpoint',
         'files': list(request.FILES.keys()),
         'data': list(request.data.keys()),
-        'content_type': request.content_type
+        'content_type': request.content_type,
     }, status=status.HTTP_200_OK)
-
-logger = logging.getLogger(__name__)
 
 
 class VideoAnalysisViewSet(viewsets.ModelViewSet):
@@ -285,8 +300,35 @@ class AccidentEventViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         analysis_id = self.request.query_params.get('analysis_id')
-        
+
         if analysis_id:
             queryset = queryset.filter(analysis_id=analysis_id)
-        
+
         return queryset
+
+
+# ---------------------------------------------------------------------------
+# Health-check endpoint
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def health_check(request):
+    """
+    GET /api/health/
+
+    Lightweight endpoint for load-balancer / uptime monitoring probes.
+    Returns HTTP 200 with a JSON body containing the server timestamp and
+    a summary count of analyses in each processing state.
+    """
+    status_counts = {
+        s: VideoAnalysis.objects.filter(status=s).count()
+        for s in ('pending', 'processing', 'completed', 'failed')
+    }
+    return Response(
+        {
+            'status': 'ok',
+            'timestamp': timezone.now().isoformat(),
+            'analyses': status_counts,
+        },
+        status=status.HTTP_200_OK,
+    )
