@@ -4,19 +4,19 @@ djangorestframework==3.14.0
 django-cors-headers==4.3.1
 
 # Image & Video Processing
-Pillow==10.1.0
-opencv-python==4.8.1.78
+Pillow>=10.3.0
+opencv-python>=4.10.0
 
 # Deep Learning
-torch==2.1.1
-torchvision==0.16.1
-ultralytics==8.0.196
+torch>=2.6.0
+torchvision>=0.21.0
+ultralytics>=8.3.0
 
 # Data Processing
-numpy==1.24.3
-pandas==2.1.3
+numpy>=1.26.0
+pandas>=2.1.3
 
-# Async Processing (Optional - choose one)
+# Async Processing (Optional)
 celery==5.3.4
 redis==5.0.1
 
@@ -28,8 +28,8 @@ daphne==4.0.0
 # Production Server
 gunicorn==21.2.0
 
-# Database (PostgreSQL - Optional)
-psycopg2-binary==2.9.9
+# Database (PostgreSQL - Optional, requires PostgreSQL dev headers)
+# psycopg2-binary==2.9.9  # Uncomment only if using PostgreSQL
 
 # Utilities
 python-dotenv==1.0.0
