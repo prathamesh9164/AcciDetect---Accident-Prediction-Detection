@@ -15,7 +15,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [3.0.0] – 2026-04-16
+## [3.1.0] – 2026-04-18
+
+### Added
+- **`GET /api/analyses/{id}/summary/`** — new lightweight endpoint returning a concise analysis overview (vehicle counts, accident vehicle IDs, duration, processing time)
+- `processing_time_seconds` field on `VideoAnalysis` model to record how long a job took from start to finish
+- `label` property on `Vehicle` model for human-readable display (e.g. `V-3 (accident)`)
+
+### Changed
+- `graph_data` endpoint now correctly includes the `summary` action in the ViewSet without breaking existing routes
+- Minor code-style cleanup in `views.py` (trailing-whitespace removal)
+
+---
+
+
 
 ### Added
 - **Analytics Dashboard** with per-vehicle speed & probability charts (Recharts)

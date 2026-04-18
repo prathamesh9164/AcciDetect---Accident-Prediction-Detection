@@ -224,6 +224,7 @@ Base URL: `http://localhost:8000/api/`
 | `GET` | `/api/analyses/{id}/status/` | Get processing status & progress |
 | `GET` | `/api/analyses/{id}/vehicles/` | Get all tracked vehicles |
 | `GET` | `/api/analyses/{id}/graph_data/` | Get chart-ready graph data |
+| `GET` | `/api/analyses/{id}/summary/` | Get concise analysis summary (vehicles, accident info, timings) |
 | `GET` | `/api/analyses/{id}/download_video/` | Download annotated output video |
 | `GET` | `/api/analyses/{id}/download_clip/` | Download accident clip |
 | `GET` | `/api/analyses/{id}/download_csv/` | Download vehicle data as CSV |

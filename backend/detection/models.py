@@ -33,7 +33,9 @@ class VideoAnalysis(models.Model):
     csv_file = models.FileField(upload_to='csv/', null=True, blank=True)
     
     error_message = models.TextField(null=True, blank=True)
-    
+    # Time taken from 'processing' → 'completed' / 'failed' (seconds)
+    processing_time_seconds = models.FloatField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -96,6 +98,12 @@ class Vehicle(models.Model):
         verbose_name = 'Vehicle'
         verbose_name_plural = 'Vehicles'
     
+    @property
+    def label(self) -> str:
+        """Human-readable label, e.g. 'V-3 (accident)' or 'V-7'."""
+        tag = " (accident)" if self.is_accident_vehicle else ""
+        return f"V-{self.vehicle_id}{tag}"
+
     def __str__(self):
         return f"Vehicle {self.vehicle_id} (Analysis {self.analysis.id})"
 

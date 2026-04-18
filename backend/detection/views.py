@@ -166,7 +166,34 @@ class VideoAnalysisViewSet(viewsets.ModelViewSet):
         }
         
         return Response(graph_data)
-    
+
+    @action(detail=True, methods=['get'])
+    def summary(self, request, pk=None):
+        """
+        GET /api/analyses/{id}/summary/
+
+        Returns a concise human-readable summary of the analysis result,
+        useful for notification banners or report headers.
+        """
+        analysis = self.get_object()
+        vehicles_qs = analysis.vehicles.all()
+        accident_vehicles = vehicles_qs.filter(is_accident_vehicle=True)
+
+        data = {
+            'id': str(analysis.id),
+            'status': analysis.status,
+            'accident_detected': analysis.accident_detected,
+            'accident_timestamp': analysis.accident_timestamp,
+            'total_vehicles': vehicles_qs.count(),
+            'accident_vehicles': accident_vehicles.count(),
+            'accident_vehicle_ids': list(accident_vehicles.values_list('vehicle_id', flat=True)),
+            'duration_seconds': analysis.duration_seconds,
+            'processing_time_seconds': analysis.processing_time_seconds,
+            'created_at': analysis.created_at.isoformat() if analysis.created_at else None,
+            'completed_at': analysis.completed_at.isoformat() if analysis.completed_at else None,
+        }
+        return Response(data)
+
     @action(detail=True, methods=['get'])
     def download_video(self, request, pk=None):
         """Download annotated output video"""
