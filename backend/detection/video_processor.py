@@ -5,6 +5,8 @@ import pandas as pd
 from collections import deque
 import math
 import os
+import subprocess
+import shutil
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -155,14 +157,25 @@ class VideoProcessor:
             self.analysis.save()
 
             output_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
+
+            # ── Resolution cap: scale down to max 720p to reduce file size ──
+            MAX_HEIGHT = 720
+            if height > MAX_HEIGHT:
+                scale = MAX_HEIGHT / height
+                out_width = int(width * scale) & ~1   # must be even for H.264
+                out_height = MAX_HEIGHT
+            else:
+                out_width, out_height = width, height
+            logger.info(f"Output resolution: {out_width}x{out_height}")
+
             # Use H.264 codec (avc1) for browser-compatible playback
             fourcc = cv2.VideoWriter_fourcc(*'avc1')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            out = cv2.VideoWriter(output_path, fourcc, fps, (out_width, out_height))
             # Fallback to mp4v if avc1 not available
             if not out.isOpened():
                 logger.warning("avc1 codec unavailable, falling back to mp4v")
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+                out = cv2.VideoWriter(output_path, fourcc, fps, (out_width, out_height))
 
             pre_buffer = deque(maxlen=int(PRE_ACCIDENT_SECONDS * fps))
             accident_writer = None
@@ -178,6 +191,10 @@ class VideoProcessor:
 
                 frame_idx += 1
                 orig = frame.copy()
+
+                # Resize frame to output resolution before annotation
+                if (out_width, out_height) != (width, height):
+                    orig = cv2.resize(orig, (out_width, out_height))
 
                 if total_frames > 0 and frame_idx % 10 == 0:
                     progress = 10 + int((frame_idx / total_frames) * 80)
@@ -224,7 +241,7 @@ class VideoProcessor:
                             self.trackers[tid].accident_frame = frame_idx
 
                     accident_clip_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
-                    accident_writer = cv2.VideoWriter(accident_clip_path, fourcc, fps, (width, height))
+                    accident_writer = cv2.VideoWriter(accident_clip_path, fourcc, fps, (out_width, out_height))
 
                     for f in list(pre_buffer):
                         accident_writer.write(f)
@@ -245,7 +262,7 @@ class VideoProcessor:
             if accident_writer is not None:
                 accident_writer.release()
 
-            self._save_results(output_path, accident_clip_path)
+            self._save_results(output_path, accident_clip_path, fps, out_width, out_height)
 
             processing_end = timezone.now()
             started_at = self.analysis.updated_at  # approximate start
@@ -404,12 +421,54 @@ class VideoProcessor:
 
         return annotated
 
-    def _save_results(self, output_path, accident_clip_path):
+    # ── FFmpeg helper ───────────────────────────────────────────────────────
+    @staticmethod
+    def _ffmpeg_compress(input_path: str, crf: int = 28) -> str:
+        """Re-encode a video with FFmpeg H.264 at the given CRF (lower = better quality).
+
+        Returns the path of the compressed file, or the original path if FFmpeg
+        is unavailable or the re-encode fails.
+        """
+        if shutil.which('ffmpeg') is None:
+            logger.warning("FFmpeg not found – skipping compression step")
+            return input_path
+
+        compressed_path = input_path.replace('.mp4', '_compressed.mp4')
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', input_path,
+            '-vcodec', 'libx264',
+            '-crf', str(crf),
+            '-preset', 'medium',
+            '-acodec', 'copy',
+            '-movflags', '+faststart',   # enables progressive streaming
+            compressed_path,
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+            original_size = os.path.getsize(input_path)
+            compressed_size = os.path.getsize(compressed_path)
+            logger.info(
+                f"FFmpeg compression: {original_size // 1024} KB → "
+                f"{compressed_size // 1024} KB "
+                f"({100 - int(compressed_size / original_size * 100)}% reduction)"
+            )
+            os.unlink(input_path)        # remove the uncompressed copy
+            return compressed_path
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"FFmpeg compression failed: {e.stderr.decode(errors='ignore')}")
+            return input_path
+
+    def _save_results(self, output_path, accident_clip_path, fps=None, out_width=None, out_height=None):
         """Save results to database"""
+        # ── Compress output video with FFmpeg (CRF 28) ──────────────────────
+        output_path = self._ffmpeg_compress(output_path, crf=28)
+
         with open(output_path, 'rb') as f:
             self.analysis.output_video.save(f'output_{self.analysis.id}.mp4', File(f))
 
         if accident_clip_path and os.path.exists(accident_clip_path):
+            accident_clip_path = self._ffmpeg_compress(accident_clip_path, crf=28)
             with open(accident_clip_path, 'rb') as f:
                 self.analysis.accident_clip.save(f'clip_{self.analysis.id}.mp4', File(f))
             self.analysis.accident_detected = True

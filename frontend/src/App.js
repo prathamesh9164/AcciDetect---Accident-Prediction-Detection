@@ -417,48 +417,52 @@ function App() {
           <div className="space-y-6">
             {/* Video Player Section */}
             <div className="bg-white rounded-xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold mb-6">Processed Video Output</h2>
-              
-              <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: '16/9' }}>
-                <video
-                  ref={outputVideoRef}
-                  controls
-                  className="w-full h-full"
-                  src={`${API_BASE_URL}/api/analyses/${analysisId}/download_video/`}
-                  crossOrigin="anonymous"
-                >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
-              
-              <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                <PlayCircle size={16} />
-                <span>Use video controls to play, pause, and seek through the processed video</span>
+              <h2 className="text-2xl font-bold mb-4">Processed Video Output</h2>
+
+              <div className="mx-auto max-w-2xl">
+                <div className="relative bg-black rounded-lg overflow-hidden mb-3" style={{ aspectRatio: '16/9' }}>
+                  <video
+                    ref={outputVideoRef}
+                    controls
+                    className="w-full h-full"
+                    src={`${API_BASE_URL}/api/analyses/${analysisId}/download_video/`}
+                    crossOrigin="anonymous"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                  <PlayCircle size={14} />
+                  <span>Use video controls to play, pause, and seek through the processed video</span>
+                </div>
               </div>
             </div>
 
             {/* Accident Clip Player (if accident detected) */}
             {analysisData.accident_detected && (
               <div className="bg-red-50 border-2 border-red-300 rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold mb-6 text-red-700">
+                <h2 className="text-2xl font-bold mb-4 text-red-700">
                   <AlertTriangle className="inline-block mr-2" size={24} />
                   Accident Clip
                 </h2>
-                
-                <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: '16/9' }}>
-                  <video
-                    controls
-                    className="w-full h-full"
-                    src={`${API_BASE_URL}/api/analyses/${analysisId}/download_clip/`}
-                    crossOrigin="anonymous"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                </div>
-                
-                <div className="flex items-center justify-center gap-2 text-sm text-red-700">
-                  <AlertTriangle size={16} />
-                  <span>Accident detected at frame {analysisData.accident_frame} ({analysisData.accident_timestamp?.toFixed(2)}s)</span>
+
+                <div className="mx-auto max-w-2xl">
+                  <div className="relative bg-black rounded-lg overflow-hidden mb-3" style={{ aspectRatio: '16/9' }}>
+                    <video
+                      controls
+                      className="w-full h-full"
+                      src={`${API_BASE_URL}/api/analyses/${analysisId}/download_clip/`}
+                      crossOrigin="anonymous"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-red-600">
+                    <AlertTriangle size={14} />
+                    <span>Accident detected at frame {analysisData.accident_frame} ({analysisData.accident_timestamp?.toFixed(2)}s)</span>
+                  </div>
                 </div>
               </div>
             )}
