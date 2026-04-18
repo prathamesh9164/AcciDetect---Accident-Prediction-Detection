@@ -196,23 +196,29 @@ class VideoAnalysisViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def download_video(self, request, pk=None):
-        """Download annotated output video"""
+        """Stream or download the annotated output video.
+
+        By default the response is served *inline* so the browser <video> tag
+        can play it directly.  Append ?download=1 to force a file download.
+        """
         analysis = self.get_object()
-        
+
         if not analysis.output_video:
             return Response(
                 {'error': 'Output video not available'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         try:
+            force_download = request.query_params.get('download') == '1'
             return FileResponse(
                 analysis.output_video.open('rb'),
-                as_attachment=True,
-                filename=f'output_{analysis.id}.mp4'
+                as_attachment=force_download,
+                filename=f'output_{analysis.id}.mp4',
+                content_type='video/mp4',
             )
         except Exception as e:
-            logger.error(f"Error downloading video: {str(e)}")
+            logger.error(f"Error serving video: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -220,23 +226,29 @@ class VideoAnalysisViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def download_clip(self, request, pk=None):
-        """Download accident clip"""
+        """Stream or download the accident clip.
+
+        By default the response is served *inline* so the browser <video> tag
+        can play it directly.  Append ?download=1 to force a file download.
+        """
         analysis = self.get_object()
-        
+
         if not analysis.accident_clip:
             return Response(
                 {'error': 'Accident clip not available'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         try:
+            force_download = request.query_params.get('download') == '1'
             return FileResponse(
                 analysis.accident_clip.open('rb'),
-                as_attachment=True,
-                filename=f'accident_clip_{analysis.id}.mp4'
+                as_attachment=force_download,
+                filename=f'accident_clip_{analysis.id}.mp4',
+                content_type='video/mp4',
             )
         except Exception as e:
-            logger.error(f"Error downloading clip: {str(e)}")
+            logger.error(f"Error serving clip: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

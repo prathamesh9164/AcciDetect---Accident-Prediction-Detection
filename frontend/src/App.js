@@ -126,7 +126,7 @@ function App() {
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analyses/${analysisId}/${endpoints[type]}/`);
+      const response = await fetch(`${API_BASE_URL}/api/analyses/${analysisId}/${endpoints[type]}/?download=1`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -424,7 +424,8 @@ function App() {
                   ref={outputVideoRef}
                   controls
                   className="w-full h-full"
-                  src={`${API_BASE_URL}/media/output/output_${analysisId}.mp4`}
+                  src={`${API_BASE_URL}/api/analyses/${analysisId}/download_video/`}
+                  crossOrigin="anonymous"
                 >
                   Your browser does not support the video tag.
                 </video>
@@ -448,7 +449,8 @@ function App() {
                   <video
                     controls
                     className="w-full h-full"
-                    src={`${API_BASE_URL}/media/clips/clip_${analysisId}.mp4`}
+                    src={`${API_BASE_URL}/api/analyses/${analysisId}/download_clip/`}
+                    crossOrigin="anonymous"
                   >
                     Your browser does not support the video tag.
                   </video>

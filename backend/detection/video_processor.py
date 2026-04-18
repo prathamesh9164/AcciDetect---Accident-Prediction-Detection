@@ -155,8 +155,14 @@ class VideoProcessor:
             self.analysis.save()
 
             output_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            # Use H.264 codec (avc1) for browser-compatible playback
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')
             out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            # Fallback to mp4v if avc1 not available
+            if not out.isOpened():
+                logger.warning("avc1 codec unavailable, falling back to mp4v")
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
             pre_buffer = deque(maxlen=int(PRE_ACCIDENT_SECONDS * fps))
             accident_writer = None
@@ -241,9 +247,11 @@ class VideoProcessor:
 
             self._save_results(output_path, accident_clip_path)
 
+            processing_end = timezone.now()
+            started_at = self.analysis.updated_at  # approximate start
             self.analysis.status = 'completed'
             self.analysis.progress = 100
-            self.analysis.completed_at = timezone.now()
+            self.analysis.completed_at = processing_end
             self.analysis.save()
 
             self.update_progress(100, 'completed')
