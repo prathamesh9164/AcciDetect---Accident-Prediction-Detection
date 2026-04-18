@@ -23,7 +23,7 @@ function App() {
   const pollStatus = async (id) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/analysis/${id}/status/`);
+        const response = await fetch(`${API_BASE_URL}/api/analyses/${id}/status/`);
         const data = await response.json();
         
         setAnalysisData(data);
@@ -69,7 +69,7 @@ function App() {
     setProgress(0);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analysis/`, {
+      const response = await fetch(`${API_BASE_URL}/api/analyses/`, {
         method: 'POST',
         body: formData,
       });
@@ -98,7 +98,7 @@ function App() {
 
   const loadVehicles = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analysis/${id}/vehicles/`);
+      const response = await fetch(`${API_BASE_URL}/api/analyses/${id}/vehicles/`);
       const data = await response.json();
       setVehicles(data);
     } catch (error) {
@@ -108,7 +108,7 @@ function App() {
 
   const loadGraphData = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analysis/${id}/graph_data/`);
+      const response = await fetch(`${API_BASE_URL}/api/analyses/${id}/graph_data/`);
       const data = await response.json();
       setGraphData(data);
     } catch (error) {
@@ -126,7 +126,7 @@ function App() {
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analysis/${analysisId}/${endpoints[type]}/`);
+      const response = await fetch(`${API_BASE_URL}/api/analyses/${analysisId}/${endpoints[type]}/`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
