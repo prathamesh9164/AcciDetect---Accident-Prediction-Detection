@@ -206,8 +206,8 @@ function App() {
         <LineChart data={vehicle.speed_history}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="frame" label={{ value: 'Frame', position: 'insideBottom', offset: -5 }} />
-          <YAxis label={{ value: 'Speed (km/h)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip />
+          <YAxis domain={[0, 'auto']} label={{ value: 'Speed (km/h)', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value) => [`${value} km/h`, 'Speed']} />
           <Legend />
           <Line type="monotone" dataKey="speed" stroke="#3b82f6" strokeWidth={2} dot={false} />
         </LineChart>
@@ -220,15 +220,21 @@ function App() {
       return <div className="text-gray-500 text-center py-8">No probability data available</div>;
     }
 
+    // Convert probabilities to percentages for display
+    const data = vehicle.probability_history.map(d => ({
+      ...d,
+      prob_percent: parseFloat((d.probability * 100).toFixed(1))
+    }));
+
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={vehicle.probability_history}>
+        <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="frame" label={{ value: 'Frame', position: 'insideBottom', offset: -5 }} />
-          <YAxis label={{ value: 'Accident Probability', angle: -90, position: 'insideLeft' }} />
-          <Tooltip />
+          <YAxis domain={[0, 100]} label={{ value: 'Accident Probability (%)', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value) => [`${value}%`, 'Probability']} />
           <Legend />
-          <Line type="monotone" dataKey="probability" stroke="#ef4444" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="prob_percent" name="Probability" stroke="#ef4444" strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     );
@@ -241,22 +247,30 @@ function App() {
 
     const data = graphData.vehicles.map(v => ({
       id: `V${v.id}`,
-      speed: v.avg_speed,
-      probability: v.max_probability * 100,
+      speed: parseFloat(v.avg_speed.toFixed(1)),
+      probability: parseFloat((v.max_probability * 100).toFixed(1)),
       isAccident: v.is_accident
     }));
 
     return (
       <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="id" />
-          <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" />
-          <YAxis yAxisId="right" orientation="right" stroke="#ef4444" />
+          <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 'auto']} label={{ value: 'Avg Speed (km/h)', angle: -90, position: 'insideLeft', offset: -10 }} />
+          <YAxis yAxisId="right" orientation="right" stroke="#ef4444" domain={[0, 100]} label={{ value: 'Max Prob (%)', angle: 90, position: 'insideRight', offset: -10 }} />
           <Tooltip />
           <Legend />
-          <Bar yAxisId="left" dataKey="speed" fill="#3b82f6" name="Avg Speed (km/h)" />
-          <Bar yAxisId="right" dataKey="probability" fill="#ef4444" name="Max Probability (%)" />
+          <Bar yAxisId="left" dataKey="speed" name="Avg Speed (km/h)">
+            {data.map((entry, index) => (
+              <Cell key={`cell-speed-${index}`} fill={entry.isAccident ? '#fca5a5' : '#3b82f6'} />
+            ))}
+          </Bar>
+          <Bar yAxisId="right" dataKey="probability" name="Max Probability (%)">
+             {data.map((entry, index) => (
+              <Cell key={`cell-prob-${index}`} fill={entry.isAccident ? '#ef4444' : '#f87171'} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     );
