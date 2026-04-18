@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle, Sun, Moon } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -19,6 +19,28 @@ function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const outputVideoRef = useRef(null);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        return savedTheme === 'dark';
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   
   const pollStatus = async (id) => {
     const interval = setInterval(async () => {
@@ -173,13 +195,13 @@ function App() {
       <div 
         className={`p-4 rounded-lg cursor-pointer transition-all ${
           isAccident 
-            ? 'bg-red-50 border-2 border-red-500' 
-            : 'bg-gray-50 border border-gray-200 hover:border-blue-400'
-        } ${selectedVehicle?.vehicle_id === vehicle.vehicle_id ? 'ring-2 ring-blue-500' : ''}`}
+            ? 'bg-red-50 dark:bg-red-900/30 border-2 border-red-500 dark:border-red-700' 
+            : 'bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:border-rose-400 dark:hover:border-rose-500'
+        } ${selectedVehicle?.vehicle_id === vehicle.vehicle_id ? 'ring-2 ring-rose-500 dark:ring-rose-400' : ''}`}
         onClick={() => setSelectedVehicle(vehicle)}
       >
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg">Vehicle #{vehicle.vehicle_id}</h3>
+          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">Vehicle #{vehicle.vehicle_id}</h3>
           {isAccident && (
             <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
               ACCIDENT
@@ -198,18 +220,18 @@ function App() {
 
   const SpeedChart = ({ vehicle }) => {
     if (!vehicle?.speed_history || vehicle.speed_history.length === 0) {
-      return <div className="text-gray-500 text-center py-8">No speed data available</div>;
+      return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No speed data available</div>;
     }
 
     return (
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={vehicle.speed_history}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="frame" label={{ value: 'Frame', position: 'insideBottom', offset: -5 }} />
-          <YAxis domain={[0, 'auto']} label={{ value: 'Speed (km/h)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={(value) => [`${value} km/h`, 'Speed']} />
-          <Legend />
-          <Line type="monotone" dataKey="speed" stroke="#3b82f6" strokeWidth={2} dot={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#475569' : '#e5e7eb'} />
+          <XAxis dataKey="frame" tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <YAxis domain={[0, 'auto']} tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} formatter={(value) => [`${value} km/h`, 'Speed']} />
+          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <Line type="monotone" dataKey="speed" stroke={isDarkMode ? '#fb7185' : '#e11d48'} strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     );
@@ -217,7 +239,7 @@ function App() {
 
   const ProbabilityChart = ({ vehicle }) => {
     if (!vehicle?.probability_history || vehicle.probability_history.length === 0) {
-      return <div className="text-gray-500 text-center py-8">No probability data available</div>;
+      return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No probability data available</div>;
     }
 
     // Convert probabilities to percentages for display
@@ -229,46 +251,87 @@ function App() {
     return (
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="frame" label={{ value: 'Frame', position: 'insideBottom', offset: -5 }} />
-          <YAxis domain={[0, 100]} label={{ value: 'Accident Probability (%)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={(value) => [`${value}%`, 'Probability']} />
-          <Legend />
-          <Line type="monotone" dataKey="prob_percent" name="Probability" stroke="#ef4444" strokeWidth={2} dot={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#475569' : '#e5e7eb'} />
+          <XAxis dataKey="frame" tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <YAxis domain={[0, 100]} tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} formatter={(value) => [`${value}%`, 'Probability']} />
+          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <Line type="monotone" dataKey="prob_percent" name="Probability" stroke={isDarkMode ? '#f87171' : '#ef4444'} strokeWidth={2} dot={false} />
         </LineChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const AccidentDistributionChart = () => {
+    if (!graphData?.vehicles || graphData.vehicles.length === 0) {
+      return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No data available</div>;
+    }
+
+    let safe = 0;
+    let accident = 0;
+    graphData.vehicles.forEach(v => {
+      if (v.is_accident || v.is_accident_vehicle) accident++;
+      else safe++;
+    });
+
+    const chartData = [
+      { name: 'Safe Vehicles', value: safe, fill: isDarkMode ? '#059669' : '#10b981' },
+      { name: 'Accident Vehicles', value: accident, fill: isDarkMode ? '#e11d48' : '#f43f5e' }
+    ].filter(d => d.value > 0);
+
+    return (
+      <ResponsiveContainer width="100%" height={350}>
+        <PieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={90}
+            paddingAngle={5}
+            dataKey="value"
+            minAngle={15}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} />
+          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+        </PieChart>
       </ResponsiveContainer>
     );
   };
 
   const VehicleComparisonChart = () => {
     if (!graphData?.vehicles || graphData.vehicles.length === 0) {
-      return <div className="text-gray-500 text-center py-8">No data available</div>;
+      return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No data available</div>;
     }
 
     const data = graphData.vehicles.map(v => ({
       id: `V${v.id}`,
       speed: parseFloat(v.avg_speed.toFixed(1)),
       probability: parseFloat((v.max_probability * 100).toFixed(1)),
-      isAccident: v.is_accident
+      isAccident: v.is_accident || v.is_accident_vehicle
     }));
 
     return (
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={350}>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="id" />
-          <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 'auto']} label={{ value: 'Avg Speed (km/h)', angle: -90, position: 'insideLeft', offset: -10 }} />
-          <YAxis yAxisId="right" orientation="right" stroke="#ef4444" domain={[0, 100]} label={{ value: 'Max Prob (%)', angle: 90, position: 'insideRight', offset: -10 }} />
-          <Tooltip />
-          <Legend />
+          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#475569' : '#e5e7eb'} />
+          <XAxis dataKey="id" tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <YAxis yAxisId="left" orientation="left" stroke={isDarkMode ? '#fb7185' : '#e11d48'} domain={[0, 'auto']} />
+          <YAxis yAxisId="right" orientation="right" stroke={isDarkMode ? '#f87171' : '#ef4444'} domain={[0, 100]} />
+          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} />
+          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
           <Bar yAxisId="left" dataKey="speed" name="Avg Speed (km/h)">
             {data.map((entry, index) => (
-              <Cell key={`cell-speed-${index}`} fill={entry.isAccident ? '#fca5a5' : '#3b82f6'} />
+              <Cell key={`cell-speed-${index}`} fill={entry.isAccident ? (isDarkMode ? '#fca5a5' : '#ffe4e6') : (isDarkMode ? '#fb7185' : '#e11d48')} />
             ))}
           </Bar>
           <Bar yAxisId="right" dataKey="probability" name="Max Probability (%)">
              {data.map((entry, index) => (
-              <Cell key={`cell-prob-${index}`} fill={entry.isAccident ? '#ef4444' : '#f87171'} />
+              <Cell key={`cell-prob-${index}`} fill={entry.isAccident ? (isDarkMode ? '#ef4444' : '#dc2626') : (isDarkMode ? '#f87171' : '#fca5a5')} />
             ))}
           </Bar>
         </BarChart>
@@ -277,14 +340,23 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 to-pink-50 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300">
       <div className="container mx-auto px-4 py-8">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            <Activity className="inline-block mr-3 text-blue-600" size={40} />
-            Accident Detection System
-          </h1>
-          <p className="text-gray-600">AI-powered vehicle tracking and accident prediction</p>
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+              <Activity className="inline-block mr-3 text-rose-600 dark:text-rose-500" size={40} />
+              Accident Detection System
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">AI-powered vehicle tracking and accident prediction</p>
+          </div>
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-3 rounded-full bg-white dark:bg-slate-800 text-gray-800 dark:text-yellow-400 shadow-md hover:bg-rose-50 dark:hover:bg-slate-700 transition-all"
+            aria-label="Toggle Dark Mode"
+          >
+            {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
+          </button>
         </header>
 
         <div className="flex gap-4 mb-6">
@@ -292,8 +364,8 @@ function App() {
             onClick={() => setActiveTab('upload')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'upload'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-rose-600 text-white shadow-lg dark:bg-rose-500'
+                : 'bg-white text-gray-700 hover:bg-rose-50 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
             <Upload className="inline-block mr-2" size={20} />
@@ -303,8 +375,8 @@ function App() {
             onClick={() => setActiveTab('live')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'live'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-rose-600 text-white shadow-lg dark:bg-rose-500'
+                : 'bg-white text-gray-700 hover:bg-rose-50 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
             <Camera className="inline-block mr-2" size={20} />
@@ -315,8 +387,8 @@ function App() {
               onClick={() => setActiveTab('results')}
               className={`px-6 py-3 rounded-lg font-semibold transition-all ${
                 activeTab === 'results'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-rose-600 text-white shadow-lg dark:bg-rose-500'
+                  : 'bg-white text-gray-700 hover:bg-rose-50 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
               }`}
             >
               <FileText className="inline-block mr-2" size={20} />
@@ -326,10 +398,10 @@ function App() {
         </div>
 
         {activeTab === 'upload' && (
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-6">Upload Recorded Video</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Upload Recorded Video</h2>
             
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+            <div className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-12 text-center hover:bg-rose-50 dark:hover:bg-slate-700 transition-colors">
               <input
                 type="file"
                 accept="video/*"
@@ -339,11 +411,11 @@ function App() {
                 disabled={isProcessing}
               />
               <label htmlFor="video-upload" className="cursor-pointer">
-                <Video className="mx-auto mb-4 text-gray-400" size={64} />
-                <p className="text-lg font-semibold text-gray-700 mb-2">
+                <Video className="mx-auto mb-4 text-gray-400 dark:text-gray-500" size={64} />
+                <p className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   {videoFile ? videoFile.name : 'Click to upload video'}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Supports MP4, AVI, MOV and other video formats
                 </p>
               </label>
@@ -352,7 +424,7 @@ function App() {
             {videoFile && !isProcessing && (
               <button
                 onClick={handleSubmit}
-                className="mt-6 w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg"
+                className="mt-6 w-full bg-rose-600 text-white py-4 rounded-lg font-semibold hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition-all shadow-lg"
               >
                 Start Processing
               </button>
@@ -360,17 +432,17 @@ function App() {
 
             {isProcessing && (
               <div className="mt-6">
-                <div className="flex justify-between mb-2">
+                <div className="flex justify-between mb-2 text-gray-800 dark:text-gray-200">
                   <span className="text-sm font-semibold">Processing...</span>
                   <span className="text-sm font-semibold">{progress}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-4">
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden">
                   <div
-                    className="bg-blue-600 h-4 rounded-full transition-all duration-300"
+                    className="bg-rose-600 dark:bg-rose-500 h-4 rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   ></div>
                 </div>
-                <p className="text-sm text-gray-600 mt-2 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">
                   {progress < 30 && 'Loading model and initializing...'}
                   {progress >= 30 && progress < 70 && 'Detecting and tracking vehicles...'}
                   {progress >= 70 && progress < 100 && 'Analyzing accident probabilities...'}
@@ -382,8 +454,8 @@ function App() {
         )}
 
         {activeTab === 'live' && (
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-6">Live Stream Detection</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Live Stream Detection</h2>
             
             <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
               <video
@@ -418,8 +490,8 @@ function App() {
               )}
             </div>
 
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
+            <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 <AlertTriangle className="inline-block mr-2" size={16} />
                 Live stream detection requires a webcam or IP camera. The system will process frames in real-time.
               </p>
@@ -432,8 +504,8 @@ function App() {
             {/* Video Players Section - Side by Side Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Processed Video Output */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-bold mb-4">Processed Video Output</h2>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Processed Video Output</h2>
 
                 <div className="mx-auto w-full">
                   <div className="relative bg-black rounded-lg overflow-hidden mb-3" style={{ aspectRatio: '16/9' }}>
@@ -448,7 +520,7 @@ function App() {
                     </video>
                   </div>
 
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                  <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <PlayCircle size={14} />
                     <span>Use video controls to play, pause, and seek through the processed video</span>
                   </div>
@@ -457,9 +529,9 @@ function App() {
 
               {/* Accident Clip Player (if accident detected) */}
               {analysisData.accident_detected && (
-                <div className="bg-red-50 border-2 border-red-300 rounded-xl shadow-lg p-6 flex flex-col justify-between">
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-800 rounded-xl shadow-lg p-6 flex flex-col justify-between transition-colors duration-300">
                   <div>
-                    <h2 className="text-xl font-bold mb-4 text-red-700">
+                    <h2 className="text-xl font-bold mb-4 text-red-700 dark:text-red-400">
                       <AlertTriangle className="inline-block mr-2" size={24} />
                       Accident Clip
                     </h2>
@@ -487,34 +559,34 @@ function App() {
             </div>
 
             {/* Analysis Summary */}
-            <div className="bg-white rounded-xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold mb-6">Analysis Summary</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Analysis Summary</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Vehicles</p>
-                  <p className="text-3xl font-bold text-blue-600">{vehicles.length}</p>
+                <div className="p-4 bg-rose-50 dark:bg-slate-700 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Vehicles</p>
+                  <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{vehicles.length}</p>
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Status</p>
-                  <p className="text-lg font-bold text-green-600">{analysisData.status.toUpperCase()}</p>
+                <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">{analysisData.status.toUpperCase()}</p>
                 </div>
-                <div className={`p-4 rounded-lg ${analysisData.accident_detected ? 'bg-red-50' : 'bg-gray-50'}`}>
-                  <p className="text-sm text-gray-600">Accident Detected</p>
-                  <p className={`text-lg font-bold ${analysisData.accident_detected ? 'text-red-600' : 'text-gray-600'}`}>
+                <div className={`p-4 rounded-lg ${analysisData.accident_detected ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-slate-700'}`}>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Accident Detected</p>
+                  <p className={`text-lg font-bold ${analysisData.accident_detected ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
                     {analysisData.accident_detected ? 'YES' : 'NO'}
                   </p>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Frames</p>
-                  <p className="text-2xl font-bold text-purple-600">{analysisData.total_frames}</p>
+                <div className="p-4 bg-rose-50 dark:bg-rose-900/30 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Frames</p>
+                  <p className="text-2xl font-bold text-rose-600 dark:text-rose-500">{analysisData.total_frames}</p>
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4 justify-start">
                 <button
                   onClick={() => downloadFile('video')}
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all"
+                  className="px-6 bg-rose-600 text-white py-3 rounded-lg font-semibold hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition-all"
                 >
                   <Download className="inline-block mr-2" size={20} />
                   Download Video
@@ -522,7 +594,7 @@ function App() {
                 {analysisData.accident_detected && (
                   <button
                     onClick={() => downloadFile('clip')}
-                    className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-all"
+                    className="px-6 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition-all"
                   >
                     <Download className="inline-block mr-2" size={20} />
                     Download Accident Clip
@@ -530,7 +602,7 @@ function App() {
                 )}
                 <button
                   onClick={() => downloadFile('csv')}
-                  className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-all"
+                  className="px-6 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-all"
                 >
                   <Download className="inline-block mr-2" size={20} />
                   Download CSV
@@ -538,16 +610,24 @@ function App() {
               </div>
             </div>
 
-            {/* Vehicle Comparison Chart */}
-            <div className="bg-white rounded-xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold mb-6">Vehicle Comparison</h2>
-              <VehicleComparisonChart />
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Vehicle Comparison</h2>
+                <VehicleComparisonChart />
+              </div>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300 flex flex-col">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Accident Distribution</h2>
+                <div className="flex-1 flex items-center justify-center w-full">
+                  <AccidentDistributionChart />
+                </div>
+              </div>
             </div>
 
             {/* Vehicle Details */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold mb-4">Tracked Vehicles</h3>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Tracked Vehicles</h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {vehicles.map(vehicle => (
                     <VehicleCard key={vehicle.vehicle_id} vehicle={vehicle} />
@@ -556,11 +636,11 @@ function App() {
               </div>
 
               {selectedVehicle && (
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold mb-4">
+                <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
                     Vehicle #{selectedVehicle.vehicle_id} Details
                     {selectedVehicle.is_accident_vehicle && (
-                      <span className="ml-3 bg-red-500 text-white px-3 py-1 rounded text-sm">
+                      <span className="ml-3 bg-red-500 dark:bg-red-600 text-white px-3 py-1 rounded text-sm">
                         ACCIDENT VEHICLE
                       </span>
                     )}
