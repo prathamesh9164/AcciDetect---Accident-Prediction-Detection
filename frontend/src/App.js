@@ -41,7 +41,7 @@ function App() {
     }
   }, [isDarkMode]);
 
-  
+  // Function to poll the backend for analysis status
   const pollStatus = async (id) => {
     const interval = setInterval(async () => {
       try {
