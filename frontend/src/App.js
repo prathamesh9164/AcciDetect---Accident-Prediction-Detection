@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle, Sun, Moon } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -223,14 +223,32 @@ function App() {
       return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No speed data available</div>;
     }
 
+    const fps = analysisData?.fps || 25;
+    const mappedData = vehicle.speed_history.map(d => ({
+      ...d,
+      time: parseFloat((d.frame / fps).toFixed(1))
+    }));
+
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={vehicle.speed_history}>
+        <LineChart data={mappedData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#475569' : '#e5e7eb'} />
-          <XAxis dataKey="frame" tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
-          <YAxis domain={[0, 'auto']} tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
-          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} formatter={(value) => [`${value} km/h`, 'Speed']} />
-          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <XAxis 
+            dataKey="time" 
+            tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} 
+            label={{ value: 'Time (Seconds)', position: 'insideBottom', offset: -10, fill: isDarkMode ? '#cbd5e1' : '#475569', fontSize: 14 }}
+          />
+          <YAxis 
+            domain={[0, 'auto']} 
+            tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} 
+            label={{ value: 'Speed (km/h)', angle: -90, position: 'insideLeft', fill: isDarkMode ? '#cbd5e1' : '#475569', fontSize: 14, style: { textAnchor: 'middle' } }}
+          />
+          <Tooltip 
+            contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} 
+            formatter={(value) => [`${value} km/h`, 'Speed']} 
+            labelFormatter={(label) => `Time: ${label}s`}
+          />
+          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563', paddingTop: '20px' }} />
           <Line type="monotone" dataKey="speed" stroke={isDarkMode ? '#fb7185' : '#e11d48'} strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
@@ -242,66 +260,41 @@ function App() {
       return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No probability data available</div>;
     }
 
-    // Convert probabilities to percentages for display
-    const data = vehicle.probability_history.map(d => ({
+    const fps = analysisData?.fps || 25;
+    // Convert probabilities to percentages for display and frames to seconds
+    const mappedData = vehicle.probability_history.map(d => ({
       ...d,
-      prob_percent: parseFloat((d.probability * 100).toFixed(1))
+      prob_percent: parseFloat((d.probability * 100).toFixed(1)),
+      time: parseFloat((d.frame / fps).toFixed(1))
     }));
 
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
+        <LineChart data={mappedData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#475569' : '#e5e7eb'} />
-          <XAxis dataKey="frame" tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
-          <YAxis domain={[0, 100]} tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} />
-          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} formatter={(value) => [`${value}%`, 'Probability']} />
-          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
+          <XAxis 
+            dataKey="time" 
+            tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} 
+            label={{ value: 'Time (Seconds)', position: 'insideBottom', offset: -10, fill: isDarkMode ? '#cbd5e1' : '#475569', fontSize: 14 }}
+          />
+          <YAxis 
+            domain={[0, 100]} 
+            tick={{ fill: isDarkMode ? '#94a3b8' : '#4b5563' }} 
+            label={{ value: 'Probability (%)', angle: -90, position: 'insideLeft', fill: isDarkMode ? '#cbd5e1' : '#475569', fontSize: 14, style: { textAnchor: 'middle' } }}
+          />
+          <Tooltip 
+            contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} 
+            formatter={(value) => [`${value}%`, 'Probability']} 
+            labelFormatter={(label) => `Time: ${label}s`}
+          />
+          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563', paddingTop: '20px' }} />
           <Line type="monotone" dataKey="prob_percent" name="Probability" stroke={isDarkMode ? '#f87171' : '#ef4444'} strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     );
   };
 
-  const AccidentDistributionChart = () => {
-    if (!graphData?.vehicles || graphData.vehicles.length === 0) {
-      return <div className="text-gray-500 dark:text-gray-400 text-center py-8">No data available</div>;
-    }
 
-    let safe = 0;
-    let accident = 0;
-    graphData.vehicles.forEach(v => {
-      if (v.is_accident || v.is_accident_vehicle) accident++;
-      else safe++;
-    });
-
-    const chartData = [
-      { name: 'Safe Vehicles', value: safe, fill: isDarkMode ? '#059669' : '#10b981' },
-      { name: 'Accident Vehicles', value: accident, fill: isDarkMode ? '#e11d48' : '#f43f5e' }
-    ].filter(d => d.value > 0);
-
-    return (
-      <ResponsiveContainer width="100%" height={350}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={90}
-            paddingAngle={5}
-            dataKey="value"
-            minAngle={15}
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.fill} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', borderColor: isDarkMode ? '#334155' : '#e5e7eb', color: isDarkMode ? '#f5f5f4' : '#1f2937' }} />
-          <Legend wrapperStyle={{ color: isDarkMode ? '#94a3b8' : '#4b5563' }} />
-        </PieChart>
-      </ResponsiveContainer>
-    );
-  };
 
   const VehicleComparisonChart = () => {
     if (!graphData?.vehicles || graphData.vehicles.length === 0) {
@@ -611,17 +604,9 @@ function App() {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Vehicle Comparison</h2>
-                <VehicleComparisonChart />
-              </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300 flex flex-col">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Accident Distribution</h2>
-                <div className="flex-1 flex items-center justify-center w-full">
-                  <AccidentDistributionChart />
-                </div>
-              </div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Vehicle Comparison</h2>
+              <VehicleComparisonChart />
             </div>
 
             {/* Vehicle Details */}

@@ -13,6 +13,7 @@ from django.utils import timezone
 from .models import VideoAnalysis, Vehicle, AccidentEvent
 import tempfile
 import logging
+from statistics import median
 
 from ultralytics import YOLO
 
@@ -21,12 +22,28 @@ logger = logging.getLogger(__name__)
 METERS_PER_PIXEL = 0.05
 MAX_MISSING_FRAMES = 30
 DISTANCE_MATCH_THRESHOLD = 100
+IOU_MATCH_THRESHOLD = 0.2          # min IoU to match a detection to a tracker
+MIN_BOX_AREA = 500                 # discard tiny spurious detections (px²)
+BBOX_SMOOTH_ALPHA = 0.6            # EMA factor for bbox smoothing (higher = trust new more)
+SPEED_MEDIAN_WINDOW = 5            # median-filter window for speed smoothing
+ACCIDENT_CONFIRM_FRAMES = 3        # require N consecutive high-prob frames
 PROB_K = 1.0
 PROB_ACCIDENT_THRESHOLD = 0.8
 PROB_LIKELY_THRESHOLD = 0.4
 PRE_ACCIDENT_SECONDS = 3
 POST_ACCIDENT_SECONDS = 5
+DECEL_THRESHOLD_KMH = 30.0         # sudden speed drop that signals a crash
 VEHICLE_CLASSES = {"car", "truck", "bus", "motorbike", "motorcycle"}
+
+
+# ── Helper: IoU between two (x1,y1,x2,y2) boxes ──────────────────────────
+def _iou(a, b):
+    xa = max(a[0], b[0]); ya = max(a[1], b[1])
+    xb = min(a[2], b[2]); yb = min(a[3], b[3])
+    inter = max(0, xb - xa) * max(0, yb - ya)
+    aa = max(1, (a[2]-a[0])*(a[3]-a[1]))
+    ab = max(1, (b[2]-b[0])*(b[3]-b[1]))
+    return inter / (aa + ab - inter)
 
 
 class TrackedVehicle:
@@ -34,6 +51,7 @@ class TrackedVehicle:
     def __init__(self, id_, bbox, frame_idx):
         self.id = id_
         self.bbox = bbox
+        self.smooth_bbox = bbox              # EMA-smoothed bbox for drawing
         self.centroids = deque(maxlen=50)
         cx = int((bbox[0] + bbox[2]) / 2)
         cy = int((bbox[1] + bbox[3]) / 2)
@@ -42,6 +60,7 @@ class TrackedVehicle:
         self.first_frame = frame_idx
         self.missing = 0
         self.speeds = deque(maxlen=30)
+        self.raw_speeds = deque(maxlen=SPEED_MEDIAN_WINDOW)  # for median filter
         self.avg_speed_kmh = 0.0
         self.max_speed_kmh = 0.0
         self.latest_prob = 0.0
@@ -50,12 +69,20 @@ class TrackedVehicle:
         self.prob_history = []
         self.is_accident = False
         self.accident_frame = None
+        self.high_prob_streak = 0            # consecutive high-prob frames
 
     def update(self, bbox, frame_idx):
-        """Update tracker with new detection"""
-        self.bbox = bbox
-        cx = int((bbox[0] + bbox[2]) / 2)
-        cy = int((bbox[1] + bbox[3]) / 2)
+        """Update tracker with new detection + EMA bbox smoothing"""
+        a = BBOX_SMOOTH_ALPHA
+        self.smooth_bbox = (
+            int(a * bbox[0] + (1 - a) * self.smooth_bbox[0]),
+            int(a * bbox[1] + (1 - a) * self.smooth_bbox[1]),
+            int(a * bbox[2] + (1 - a) * self.smooth_bbox[2]),
+            int(a * bbox[3] + (1 - a) * self.smooth_bbox[3]),
+        )
+        self.bbox = self.smooth_bbox
+        cx = int((self.bbox[0] + self.bbox[2]) / 2)
+        cy = int((self.bbox[1] + self.bbox[3]) / 2)
         self.centroids.append((cx, cy, frame_idx))
         self.last_frame = frame_idx
         self.missing = 0
@@ -65,7 +92,7 @@ class TrackedVehicle:
         self.missing += 1
 
     def compute_speed(self, meters_per_pixel, fps):
-        """Calculate speed based on movement between frames"""
+        """Calculate speed with median-filter smoothing"""
         if len(self.centroids) >= 2:
             (x1, y1, f1), (x2, y2, f2) = self.centroids[-2], self.centroids[-1]
             pixel_dist = math.hypot(x2 - x1, y2 - y1)
@@ -76,14 +103,21 @@ class TrackedVehicle:
             meters = pixel_dist * meters_per_pixel
             mps = meters / dt
             kmh = mps * 3.6
-            self.speeds.append(kmh)
-            if len(self.speeds) > 0:
-                self.avg_speed_kmh = float(sum(self.speeds) / len(self.speeds))
-            else:
-                self.avg_speed_kmh = kmh
-            self.max_speed_kmh = max(self.max_speed_kmh, kmh)
-            return kmh
+            # Median filter: push raw, take median as the "true" speed
+            self.raw_speeds.append(kmh)
+            kmh_filtered = median(self.raw_speeds)
+            self.speeds.append(kmh_filtered)
+            self.avg_speed_kmh = float(sum(self.speeds) / len(self.speeds))
+            self.max_speed_kmh = max(self.max_speed_kmh, kmh_filtered)
+            return kmh_filtered
         return None
+
+    def had_sudden_deceleration(self):
+        """Return True if the vehicle decelerated sharply (crash indicator)"""
+        if len(self.speeds) < 3:
+            return False
+        recent = list(self.speeds)[-3:]
+        return (recent[0] - recent[-1]) > DECEL_THRESHOLD_KMH
 
 
 def collision_probability(v1_speed_kmh, v2_speed_kmh, dist_m):
@@ -223,7 +257,14 @@ class VideoProcessor:
                         'probability': round(prob, 3)
                     })
 
-                accident_now = any(p >= PROB_ACCIDENT_THRESHOLD for p in vehicle_probs.values())
+                    # Track consecutive frames with high probability
+                    if prob >= PROB_ACCIDENT_THRESHOLD:
+                        tr.high_prob_streak += 1
+                    else:
+                        tr.high_prob_streak = 0
+
+                # Accident requires N consecutive frames to avoid single-frame false positives
+                accident_now = any(tr.high_prob_streak >= ACCIDENT_CONFIRM_FRAMES for tr in self.trackers.values())
 
                 annotated = self._annotate_frame(orig, frame_idx, total_frames, fps, vehicle_probs)
 
@@ -235,10 +276,10 @@ class VideoProcessor:
                     self.accident_happened = True
                     self.accident_frame = frame_idx
 
-                    for tid, prob in vehicle_probs.items():
-                        if prob >= PROB_ACCIDENT_THRESHOLD:
-                            self.trackers[tid].is_accident = True
-                            self.trackers[tid].accident_frame = frame_idx
+                    for tid, tr in self.trackers.items():
+                        if tr.high_prob_streak >= ACCIDENT_CONFIRM_FRAMES:
+                            tr.is_accident = True
+                            tr.accident_frame = frame_idx
 
                     accident_clip_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
                     accident_writer = cv2.VideoWriter(accident_clip_path, fourcc, fps, (out_width, out_height))
@@ -305,7 +346,9 @@ class VideoProcessor:
                     normalized_name = "motorcycle"
                 if normalized_name in VEHICLE_CLASSES:
                     bbox = (int(x1), int(y1), int(x2), int(y2))
-                    vehicle_dets.append((bbox, float(conf), normalized_name))
+                    area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+                    if area >= MIN_BOX_AREA:
+                        vehicle_dets.append((bbox, float(conf), normalized_name))
 
         return vehicle_dets
 
@@ -336,8 +379,10 @@ class VideoProcessor:
 
             if best_i is not None and best_dist < DISTANCE_MATCH_THRESHOLD:
                 bbox, conf, cls = detections[best_i]
-                tr.update(bbox, frame_idx)
-                assigned_det_idx.add(best_i)
+                iou_val = _iou(tr.bbox, bbox)
+                if iou_val > IOU_MATCH_THRESHOLD:
+                    tr.update(bbox, frame_idx)
+                    assigned_det_idx.add(best_i)
 
         for i, (bbox, conf, cls) in enumerate(detections):
             if i not in assigned_det_idx:
@@ -382,6 +427,10 @@ class VideoProcessor:
 
                 dist_m = math.hypot(c1[0] - c2[0], c1[1] - c2[1])
                 p = collision_probability(id_speed.get(tid1, 0.0), id_speed.get(tid2, 0.0), dist_m)
+
+                # Add penalty if either vehicle had a sudden deceleration recently
+                if self.trackers[tid1].had_sudden_deceleration() or self.trackers[tid2].had_sudden_deceleration():
+                    p = min(1.0, p + 0.3)
 
                 vehicle_probs[tid1] = max(vehicle_probs[tid1], p)
                 vehicle_probs[tid2] = max(vehicle_probs[tid2], p)

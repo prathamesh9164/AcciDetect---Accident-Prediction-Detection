@@ -123,5 +123,6 @@ class VideoAnalysisStatusSerializer(serializers.ModelSerializer):
             'accident_frame',
             'accident_timestamp',
             'total_frames',
+            'fps',
             'error_message',
         ]
