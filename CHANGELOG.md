@@ -28,7 +28,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-
+## [3.0.0] – 2026-03-01
 
 ### Added
 - **Analytics Dashboard** with per-vehicle speed & probability charts (Recharts)
