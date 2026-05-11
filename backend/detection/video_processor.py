@@ -11,6 +11,7 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from .models import VideoAnalysis, Vehicle, AccidentEvent
+from .alerts import send_accident_alert
 import tempfile
 import logging
 from statistics import median
@@ -275,6 +276,12 @@ class VideoProcessor:
                     logger.warning(f"Accident detected at frame {frame_idx}")
                     self.accident_happened = True
                     self.accident_frame = frame_idx
+                    
+                    # Trigger email/SMS alert
+                    try:
+                        send_accident_alert(self.analysis.id, frame_idx)
+                    except Exception as alert_exc:
+                        logger.error(f"Error triggering alert: {alert_exc}")
 
                     for tid, tr in self.trackers.items():
                         if tr.high_prob_streak >= ACCIDENT_CONFIRM_FRAMES:

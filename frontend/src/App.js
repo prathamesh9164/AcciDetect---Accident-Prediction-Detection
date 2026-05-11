@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle, Sun, Moon } from 'lucide-react';
+import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle, Sun, Moon, Cpu, Zap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -12,10 +12,10 @@ function App() {
   const [vehicles, setVehicles] = useState([]);
   const [graphData, setGraphData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [useGpu, setUseGpu] = useState(false);
   const [progress, setProgress] = useState(0);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isLiveStream, setIsLiveStream] = useState(false);
-  const [liveSessionId, setLiveSessionId] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const outputVideoRef = useRef(null);
@@ -86,6 +86,7 @@ function App() {
     const formData = new FormData();
     formData.append('video_file', videoFile);
     formData.append('is_live', false);
+    formData.append('use_gpu', useGpu);
 
     setIsProcessing(true);
     setProgress(0);
@@ -333,32 +334,36 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 to-pink-50 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300">
-      <div className="container mx-auto px-4 py-8">
-        <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-              <Activity className="inline-block mr-3 text-rose-600 dark:text-rose-500" size={40} />
-              Accident Detection System
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">AI-powered vehicle tracking and accident prediction</p>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 transition-colors duration-500">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <header className="mb-10 flex flex-col md:flex-row justify-between items-center bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 dark:border-slate-700/50">
+          <div className="flex items-center gap-4 mb-4 md:mb-0">
+            <div className="p-3 bg-gradient-to-br from-rose-500 to-indigo-600 rounded-xl shadow-lg text-white">
+              <Activity size={32} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">
+                AcciDetect System
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 font-medium tracking-wide">AI-powered tracking & prediction</p>
+            </div>
           </div>
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-3 rounded-full bg-white dark:bg-slate-800 text-gray-800 dark:text-yellow-400 shadow-md hover:bg-rose-50 dark:hover:bg-slate-700 transition-all"
+            className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 text-gray-800 dark:text-yellow-400 shadow-sm border border-gray-100 dark:border-slate-700 hover:scale-105 transition-transform"
             aria-label="Toggle Dark Mode"
           >
             {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
           </button>
         </header>
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-wrap gap-3 mb-8">
           <button
             onClick={() => setActiveTab('upload')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
               activeTab === 'upload'
-                ? 'bg-rose-600 text-white shadow-lg dark:bg-rose-500'
-                : 'bg-white text-gray-700 hover:bg-rose-50 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-105'
+                : 'bg-white/60 text-gray-700 hover:bg-white/80 dark:bg-slate-800/60 dark:text-gray-300 dark:hover:bg-slate-800 backdrop-blur-md'
             }`}
           >
             <Upload className="inline-block mr-2" size={20} />
@@ -366,10 +371,10 @@ function App() {
           </button>
           <button
             onClick={() => setActiveTab('live')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
               activeTab === 'live'
-                ? 'bg-rose-600 text-white shadow-lg dark:bg-rose-500'
-                : 'bg-white text-gray-700 hover:bg-rose-50 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 scale-105'
+                : 'bg-white/60 text-gray-700 hover:bg-white/80 dark:bg-slate-800/60 dark:text-gray-300 dark:hover:bg-slate-800 backdrop-blur-md'
             }`}
           >
             <Camera className="inline-block mr-2" size={20} />
@@ -378,23 +383,40 @@ function App() {
           {analysisData && (
             <button
               onClick={() => setActiveTab('results')}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
                 activeTab === 'results'
-                  ? 'bg-rose-600 text-white shadow-lg dark:bg-rose-500'
-                  : 'bg-white text-gray-700 hover:bg-rose-50 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
+                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/30 scale-105'
+                  : 'bg-white/60 text-gray-700 hover:bg-white/80 dark:bg-slate-800/60 dark:text-gray-300 dark:hover:bg-slate-800 backdrop-blur-md'
               }`}
             >
               <FileText className="inline-block mr-2" size={20} />
-              Results
+              Results Overview
             </button>
           )}
         </div>
 
         {activeTab === 'upload' && (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Upload Recorded Video</h2>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-8 transition-all duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Upload Video</h2>
+              <div className="flex items-center gap-3 bg-gray-100 dark:bg-slate-700 p-2 rounded-xl">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
+                  <Cpu size={16} className="mr-1" /> CPU
+                </span>
+                <button 
+                  onClick={() => setUseGpu(!useGpu)}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out flex ${useGpu ? 'bg-indigo-500 justify-end' : 'bg-gray-300 dark:bg-gray-600 justify-start'}`}
+                  aria-label="Toggle GPU"
+                >
+                  <div className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform"></div>
+                </button>
+                <span className={`text-sm font-medium flex items-center ${useGpu ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300'}`}>
+                  <Zap size={16} className="mr-1" /> GPU Fast
+                </span>
+              </div>
+            </div>
             
-            <div className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-12 text-center hover:bg-rose-50 dark:hover:bg-slate-700 transition-colors">
+            <div className="border-2 border-dashed border-indigo-200 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 rounded-xl p-12 text-center hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-colors backdrop-blur-sm">
               <input
                 type="file"
                 accept="video/*"
@@ -404,12 +426,12 @@ function App() {
                 disabled={isProcessing}
               />
               <label htmlFor="video-upload" className="cursor-pointer">
-                <Video className="mx-auto mb-4 text-gray-400 dark:text-gray-500" size={64} />
-                <p className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {videoFile ? videoFile.name : 'Click to upload video'}
+                <Video className="mx-auto mb-4 text-indigo-400 dark:text-indigo-500" size={64} />
+                <p className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                  {videoFile ? videoFile.name : 'Drag & drop or click to upload'}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Supports MP4, AVI, MOV and other video formats
+                  Supports MP4, AVI, MOV up to 500MB
                 </p>
               </label>
             </div>
@@ -417,29 +439,32 @@ function App() {
             {videoFile && !isProcessing && (
               <button
                 onClick={handleSubmit}
-                className="mt-6 w-full bg-rose-600 text-white py-4 rounded-lg font-semibold hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition-all shadow-lg"
+                className="mt-8 w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-indigo-500/40 transform hover:-translate-y-1 transition-all duration-300"
               >
-                Start Processing
+                Launch Analysis
               </button>
             )}
 
             {isProcessing && (
-              <div className="mt-6">
-                <div className="flex justify-between mb-2 text-gray-800 dark:text-gray-200">
-                  <span className="text-sm font-semibold">Processing...</span>
-                  <span className="text-sm font-semibold">{progress}%</span>
+              <div className="mt-8 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-inner border border-gray-100 dark:border-slate-800">
+                <div className="flex justify-between mb-3 text-gray-800 dark:text-gray-200">
+                  <span className="text-sm font-bold flex items-center">
+                    <Activity className="animate-spin mr-2" size={16} /> 
+                    Processing Video
+                  </span>
+                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{progress}%</span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden">
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
                   <div
-                    className="bg-rose-600 dark:bg-rose-500 h-4 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   ></div>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">
-                  {progress < 30 && 'Loading model and initializing...'}
-                  {progress >= 30 && progress < 70 && 'Detecting and tracking vehicles...'}
-                  {progress >= 70 && progress < 100 && 'Analyzing accident probabilities...'}
-                  {progress === 100 && 'Finalizing results...'}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center italic">
+                  {progress < 30 && 'Loading AI model weights...'}
+                  {progress >= 30 && progress < 70 && 'Tracing vehicle trajectories...'}
+                  {progress >= 70 && progress < 100 && 'Calculating collision probabilities...'}
+                  {progress === 100 && 'Rendering final video annotations...'}
                 </p>
               </div>
             )}
@@ -497,8 +522,10 @@ function App() {
             {/* Video Players Section - Side by Side Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Processed Video Output */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Processed Video Output</h2>
+              <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-6 transition-colors duration-300">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                  <Video className="mr-2 text-indigo-500" /> Processed View
+                </h2>
 
                 <div className="mx-auto w-full">
                   <div className="relative bg-black rounded-lg overflow-hidden mb-3" style={{ aspectRatio: '16/9' }}>
@@ -522,11 +549,11 @@ function App() {
 
               {/* Accident Clip Player (if accident detected) */}
               {analysisData.accident_detected && (
-                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-800 rounded-xl shadow-lg p-6 flex flex-col justify-between transition-colors duration-300">
+                <div className="bg-red-50/80 dark:bg-red-900/30 backdrop-blur-xl border border-red-200 dark:border-red-800/50 rounded-2xl shadow-xl shadow-red-500/10 p-6 flex flex-col justify-between transition-colors duration-300">
                   <div>
-                    <h2 className="text-xl font-bold mb-4 text-red-700 dark:text-red-400">
-                      <AlertTriangle className="inline-block mr-2" size={24} />
-                      Accident Clip
+                    <h2 className="text-xl font-bold mb-4 text-red-700 dark:text-red-400 flex items-center">
+                      <AlertTriangle className="mr-2" size={24} />
+                      Accident Event
                     </h2>
 
                     <div className="mx-auto w-full">
@@ -551,28 +578,27 @@ function App() {
               )}
             </div>
 
-            {/* Analysis Summary */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-8 transition-colors duration-300">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Analysis Summary</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-rose-50 dark:bg-slate-700 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Vehicles</p>
-                  <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{vehicles.length}</p>
+                <div className="p-5 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-700 dark:to-slate-800 border border-indigo-100 dark:border-slate-600 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Total Vehicles</p>
+                  <p className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{vehicles.length}</p>
                 </div>
-                <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
-                  <p className="text-lg font-bold text-green-600 dark:text-green-400">{analysisData.status.toUpperCase()}</p>
+                <div className="p-5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Status</p>
+                  <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-3">{analysisData.status.toUpperCase()}</p>
                 </div>
-                <div className={`p-4 rounded-lg ${analysisData.accident_detected ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-slate-700'}`}>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Accident Detected</p>
-                  <p className={`text-lg font-bold ${analysisData.accident_detected ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                    {analysisData.accident_detected ? 'YES' : 'NO'}
+                <div className={`p-5 rounded-xl border shadow-sm hover:shadow-md transition-shadow ${analysisData.accident_detected ? 'bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/30 dark:to-rose-900/30 border-red-200 dark:border-red-800/50' : 'bg-gradient-to-br from-gray-50 to-slate-50 dark:from-slate-700 dark:to-slate-800 border-gray-200 dark:border-slate-600'}`}>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Accident Status</p>
+                  <p className={`text-2xl font-extrabold mt-3 ${analysisData.accident_detected ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {analysisData.accident_detected ? 'DETECTED' : 'SAFE'}
                   </p>
                 </div>
-                <div className="p-4 bg-rose-50 dark:bg-rose-900/30 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Frames</p>
-                  <p className="text-2xl font-bold text-rose-600 dark:text-rose-500">{analysisData.total_frames}</p>
+                <div className="p-5 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 border border-blue-100 dark:border-blue-800/50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Processed Frames</p>
+                  <p className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mt-2">{analysisData.total_frames}</p>
                 </div>
               </div>
 
@@ -604,14 +630,14 @@ function App() {
             </div>
 
             {/* Charts Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 transition-colors duration-300">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-8 transition-colors duration-300">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Vehicle Comparison</h2>
               <VehicleComparisonChart />
             </div>
 
             {/* Vehicle Details */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
+              <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-6 transition-colors duration-300">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Tracked Vehicles</h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {vehicles.map(vehicle => (

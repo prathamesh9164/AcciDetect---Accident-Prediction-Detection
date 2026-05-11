@@ -3,8 +3,12 @@ Django settings for accident_detection project.
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = 'django-insecure-your-secret-key-change-in-production-zx8y9w0v1u2t3s4r5q6p7o8n9m0l1k2j3h4g5f6d7'
 
@@ -149,3 +153,24 @@ LOGGING = {
         },
     },
 }
+
+# --- Alerting Settings (Email & SMS) ---
+# Use SMTP if EMAIL_HOST is provided, otherwise fallback to console
+if os.getenv('EMAIL_HOST'):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'alerts@accidetect.local')
+ALERT_EMAIL = os.getenv('ALERT_EMAIL', 'admin@accidetect.local')
+
+# Twilio SMS Config (Loaded from .env)
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
+TWILIO_TO_NUMBER = os.getenv('TWILIO_TO_NUMBER')

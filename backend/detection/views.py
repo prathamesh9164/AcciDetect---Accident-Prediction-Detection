@@ -106,7 +106,8 @@ class VideoAnalysisViewSet(viewsets.ModelViewSet):
             
             if not analysis.is_live:
                 try:
-                    process_video_background(str(analysis.id))
+                    use_gpu = request.data.get('use_gpu', 'false').lower() == 'true'
+                    process_video_background(str(analysis.id), use_gpu=use_gpu)
                     logger.info(f"Started processing for analysis {analysis.id}")
                 except Exception as e:
                     logger.error(f"Error starting video processing: {str(e)}", exc_info=True)
