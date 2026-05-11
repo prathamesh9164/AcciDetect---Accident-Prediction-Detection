@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle, Sun, Moon, Cpu, Zap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
-const API_BASE_URL = 'http://localhost:8000';
+// In production (Docker), API_BASE_URL should be empty so requests are relative and Nginx proxies them
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL !== undefined ? process.env.REACT_APP_API_BASE_URL : 'http://localhost:8000';
 
 function App() {
   const [activeTab, setActiveTab] = useState('upload');
