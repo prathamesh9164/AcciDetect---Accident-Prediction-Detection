@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Video, Activity, Download, FileText, AlertTriangle, Play, Square, Camera, PlayCircle, Sun, Moon, Cpu, Zap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import logo from './logo.png';
 
 // In production (Docker), API_BASE_URL should be empty so requests are relative and Nginx proxies them
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL !== undefined ? process.env.REACT_APP_API_BASE_URL : 'http://localhost:8000';
@@ -339,12 +340,12 @@ function App() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <header className="mb-10 flex flex-col md:flex-row justify-between items-center bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 dark:border-slate-700/50">
           <div className="flex items-center gap-4 mb-4 md:mb-0">
-            <div className="p-3 bg-gradient-to-br from-rose-500 to-indigo-600 rounded-xl shadow-lg text-white">
-              <Activity size={32} />
+            <div className="p-1 bg-gradient-to-br from-rose-500 to-indigo-600 rounded-xl shadow-lg flex items-center justify-center">
+              <img src={logo} alt="Accidetect Logo" className="w-10 h-10 object-cover rounded-lg" />
             </div>
             <div>
               <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">
-                AcciDetect System
+                Accidetect
               </h1>
               <p className="text-gray-500 dark:text-gray-400 font-medium tracking-wide">AI-powered tracking & prediction</p>
             </div>
