@@ -12,6 +12,8 @@ Endpoints
 - test_upload           : Debug helper for diagnosing file-upload issues
 """
 
+# Minor comment added for GitHub activity demonstration
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
