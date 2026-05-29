@@ -18,12 +18,15 @@
 | Feature | Description |
 |---|---|
 | 📹 **Video Upload & Analysis** | Upload traffic footage and get a fully annotated output video with per-vehicle overlays |
-| 🔴 **Live Stream Detection** | Real-time accident detection via WebSocket — stream frames from webcam or CCTV |
+| 🔴 **Live Stream Detection** | Real-time WebSocket streaming capturing webcam/CCTV frames at 10 FPS with instant canvas bounding-box overlays |
+| ⚡ **CPU / GPU Fast Toggle** | Toggle processing speeds between CPU and GPU with automated driver capability detection and graceful fallbacks |
+| 📍 **2D Trajectory Projection** | Interactive road coordinate canvas projection tracing selected vehicle travel paths, motion direction vectors, and impact points |
+| 🛡️ **Threat Intelligence Timeline** | Automated pairwise frame interaction scan listing chronological near-misses and accident impact timestamps |
 | 🚗 **Vehicle Tracking** | Multi-vehicle tracking with unique IDs, speed history, and trajectory tracing |
 | 💥 **Collision Probability** | Physics-based sigmoid model computing real-time collision risk between vehicle pairs |
-| 📊 **Analytics Dashboard** | Speed charts, probability timelines, and per-vehicle statistics via Recharts |
+| 📊 **Analytics Dashboard** | Glassmorphic SaaS style layout with speed charts, safety standard deviation, and Recharts comparisons |
 | 📦 **Export Options** | Download annotated video, accident clip, and full vehicle data as CSV |
-| 🔔 **Accident Alerting** | Highlighted bounding boxes and alerts when collision probability exceeds threshold |
+| 🔔 **Accident Alerting** | Flashing hazard warning banners and highlighted bounding boxes when collision probability exceeds threshold |
 
 ---
 

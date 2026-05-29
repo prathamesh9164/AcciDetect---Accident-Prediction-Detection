@@ -8,10 +8,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- GPU-accelerated inference toggle in settings
 - Email/SMS alerting integration for accident events
 - Multi-camera dashboard view
 - User authentication & per-user analysis history
+
+---
+
+## [3.2.0] – 2026-05-28
+
+### Added
+- **`GPU-Accelerated Inference Toggle`** — fully implemented CPU/GPU fast-toggle switch in settings and video upload panel with PyTorch CUDA verification and automatic graceful CPU fallback.
+- **`Real-time Canvas Video Overlay`** — integrated offscreen canvas capture loop (10 FPS) and JPEG compression in React frontend.
+- **`Live Bounding-Box Overlay Rendering`** — WebSocket client now streams frames to backend and receives vehicle tracks, rendering colored bounding boxes and speed labels dynamically.
+- **`Accident Flash Alert Banner`** — displays a highly visible flashing hazard notification over the webcam canvas during collision events.
+- **`Interactive 2D Trajectory Map`** — canvas-based visual road projection tracing travel paths, motion direction vector arrows, start/end nodes, and collision impact coordinates.
+- **`Speed Safety & Traffic Flow Metrics`** — automated safety analytics calculating peak vehicle speed, traffic flow standard deviation (SD), and dynamic threat level ratings.
+- **`Threat Close-Call Timeline`** — client-side pairwise encounter scanner compiling chronological timelines of near-misses and impact events with peak probabilities.
+- **`Glassmorphic SaaS UI Redesign`** — applied glowing borders, backdrop-blur-xl cards, bounce warning icons, and seamless dark mode visual systems.
 
 ---
 

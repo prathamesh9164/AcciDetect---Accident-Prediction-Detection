@@ -1,5 +1,6 @@
 import json
 import base64
+# pyrefly: ignore [missing-import]
 import cv2
 import numpy as np
 import torch

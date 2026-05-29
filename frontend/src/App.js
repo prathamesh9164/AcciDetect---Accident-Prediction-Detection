@@ -6,6 +6,453 @@ import logo from './logo.png';
 // In production (Docker), API_BASE_URL should be empty so requests are relative and Nginx proxies them
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL !== undefined ? process.env.REACT_APP_API_BASE_URL : 'http://localhost:8000';
 
+const TrajectoryMap = ({ vehicle, isDarkMode }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !vehicle?.centroid_history || vehicle.centroid_history.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Get limits of coordinates to scale the trajectory map nicely
+    const coords = vehicle.centroid_history;
+    const xs = coords.map(c => c.x);
+    const ys = coords.map(c => c.y);
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    // Padding
+    const pad = 45;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Scale coords to fit canvas
+    const scaleX = (x) => {
+      const range = maxX - minX || 1;
+      return pad + ((x - minX) / range) * (w - 2 * pad);
+    };
+
+    const scaleY = (y) => {
+      const range = maxY - minY || 1;
+      return pad + ((y - minY) / range) * (h - 2 * pad);
+    };
+
+    // Draw background
+    ctx.fillStyle = isDarkMode ? '#0f172a' : '#f8fafc';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw grid
+    ctx.strokeStyle = isDarkMode ? '#1e293b' : '#f1f5f9';
+    ctx.lineWidth = 1;
+    for (let i = 50; i < w; i += 50) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, h);
+      ctx.stroke();
+    }
+    for (let i = 50; i < h; i += 50) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(w, i);
+      ctx.stroke();
+    }
+
+    // Draw dotted path line
+    ctx.strokeStyle = vehicle.is_accident_vehicle ? '#f43f5e' : '#6366f1';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(scaleX(coords[0].x), scaleY(coords[0].y));
+    for (let i = 1; i < coords.length; i++) {
+      ctx.lineTo(scaleX(coords[i].x), scaleY(coords[i].y));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset line dash
+
+    // Draw motion vector arrows along the path
+    ctx.fillStyle = vehicle.is_accident_vehicle ? '#fda4af' : '#818cf8';
+    const arrowSpacing = Math.max(1, Math.floor(coords.length / 3));
+    for (let i = Math.floor(arrowSpacing / 2); i < coords.length; i += arrowSpacing) {
+      if (i > 0) {
+        const prev = coords[i - 1];
+        const curr = coords[i];
+        const px = scaleX(prev.x);
+        const py = scaleY(prev.y);
+        const cx = scaleX(curr.x);
+        const cy = scaleY(curr.y);
+        
+        const angle = Math.atan2(cy - py, cx - px);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx - 10 * Math.cos(angle - Math.PI / 6), cy - 10 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(cx - 10 * Math.cos(angle + Math.PI / 6), cy - 10 * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Draw nodes
+    coords.forEach((pt, index) => {
+      const x = scaleX(pt.x);
+      const y = scaleY(pt.y);
+
+      if (index === 0) {
+        // Start node
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = isDarkMode ? '#e2e8f0' : '#334155';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('🟢 Start', x + 10, y + 4);
+      } else if (index === coords.length - 1) {
+        // End node
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = isDarkMode ? '#e2e8f0' : '#334155';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('🔴 End', x + 10, y + 4);
+      } else if (vehicle.is_accident_vehicle && pt.frame === vehicle.accident_frame) {
+        // Accident node
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('💥 IMPACT POINT', x + 12, y + 4);
+      } else if (index % 10 === 0) {
+        // Intermediate path dots
+        ctx.fillStyle = isDarkMode ? '#94a3b8' : '#64748b';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
+
+  }, [vehicle, isDarkMode]);
+
+  return (
+    <div className="flex flex-col items-center w-full">
+      <div className="relative border border-gray-200 dark:border-slate-700/80 rounded-xl overflow-hidden shadow-inner bg-slate-900 w-full" style={{ maxWidth: '640px' }}>
+        <canvas
+          ref={canvasRef}
+          width={640}
+          height={320}
+          className="w-full block"
+        />
+      </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+        Dotted path represents coordinate centroids. Arrow indices indicate motion vector direction. Start &amp; End nodes highlighted.
+      </p>
+    </div>
+  );
+};
+
+const SafetyInsights = ({ vehiclesList }) => {
+  if (!vehiclesList || vehiclesList.length === 0) return null;
+
+  // 1. Calculate Fastest Vehicle
+  let maxSpeed = 0;
+  let maxSpeedId = null;
+  vehiclesList.forEach(v => {
+    if (v.max_speed_kmh > maxSpeed) {
+      maxSpeed = v.max_speed_kmh;
+      maxSpeedId = v.vehicle_id;
+    }
+  });
+
+  // 2. Average flow speed
+  const avgSpeeds = vehiclesList.map(v => v.avg_speed_kmh);
+  const flowAvg = avgSpeeds.reduce((a, b) => a + b, 0) / avgSpeeds.length;
+
+  // 3. Speed Standard Deviation (Chaotic Flow Index)
+  const mean = flowAvg;
+  const variance = avgSpeeds.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / avgSpeeds.length;
+  const chaoticIndex = Math.sqrt(variance);
+
+  // 4. Algorithm risk score
+  const maxProb = Math.max(...vehiclesList.map(v => v.max_probability), 0);
+  let riskRating = 'Low';
+  let riskColor = 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40';
+  if (maxProb >= 0.8) {
+    riskRating = 'Critical';
+    riskColor = 'text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-800/40';
+  } else if (maxProb >= 0.4) {
+    riskRating = 'Moderate';
+    riskColor = 'text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800/40';
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="p-5 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-slate-800/30 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col justify-between">
+        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">⚡ Fastest Tracker</p>
+        <p className="text-2xl font-extrabold text-gray-800 dark:text-gray-100 mt-2">
+          {maxSpeedId ? `Vehicle #${maxSpeedId}` : 'N/A'}
+        </p>
+        <p className="text-xs text-rose-500 dark:text-rose-400 mt-2 font-semibold">Peak Speed: {maxSpeed.toFixed(1)} km/h</p>
+      </div>
+
+      <div className="p-5 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-slate-800/30 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col justify-between">
+        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">📊 Flow Turbulence (SD)</p>
+        <p className="text-2xl font-extrabold text-gray-800 dark:text-gray-100 mt-2">
+          {chaoticIndex.toFixed(1)}
+        </p>
+        <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-2 font-semibold">Speed Standard Deviation</p>
+      </div>
+
+      <div className="p-5 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-slate-800/30 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col justify-between">
+        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">🛡️ Risk Assessment</p>
+        <div className="mt-2">
+          <span className={`text-sm font-bold px-3 py-1.5 rounded-xl font-mono tracking-wider ${riskColor}`}>
+            {riskRating.toUpperCase()}
+          </span>
+        </div>
+        <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-2 font-semibold">Threat Level Rating</p>
+      </div>
+    </div>
+  );
+};
+
+const CloseCallTimeline = ({ vehiclesList, fps, analysisData }) => {
+  const timelineEvents = [];
+  const framesVal = fps || 25;
+
+  // ── 1. Identify accident vehicles and build per-vehicle peak events ──
+  const accidentVehicles = vehiclesList.filter(v => v.is_accident_vehicle);
+  const highRiskVehicles = vehiclesList.filter(v => v.max_probability >= 0.3);
+
+  // ── 2. Build pairwise interactions using temporal overlap windows ──
+  const FRAME_WINDOW = Math.max(5, Math.round(framesVal * 0.4)); // ~0.4s window
+
+  for (let i = 0; i < highRiskVehicles.length; i++) {
+    for (let j = i + 1; j < highRiskVehicles.length; j++) {
+      const v1 = highRiskVehicles[i];
+      const v2 = highRiskVehicles[j];
+
+      // Check temporal overlap: were both vehicles visible at overlapping times?
+      const overlapStart = Math.max(v1.first_seen_frame || 0, v2.first_seen_frame || 0);
+      const overlapEnd = Math.min(v1.last_seen_frame || Infinity, v2.last_seen_frame || Infinity);
+      if (overlapStart > overlapEnd) continue; // no temporal overlap
+
+      const history1 = v1.probability_history || [];
+      const history2 = v2.probability_history || [];
+      if (history1.length === 0 && history2.length === 0) continue;
+
+      // Build a frame→probability map for fast lookup from vehicle 2
+      const h2Map = {};
+      history2.forEach(h => { h2Map[h.frame] = h.probability; });
+
+      let peakProb = 0;
+      let peakFrame = null;
+
+      // For each probability entry of v1, find the nearest v2 entry within the window
+      history1.forEach(h1 => {
+        if (h1.frame < overlapStart || h1.frame > overlapEnd) return;
+
+        let bestNeighborProb = 0;
+        for (let f = h1.frame - FRAME_WINDOW; f <= h1.frame + FRAME_WINDOW; f++) {
+          if (h2Map[f] !== undefined && h2Map[f] > bestNeighborProb) {
+            bestNeighborProb = h2Map[f];
+          }
+        }
+
+        // Combined threat = max of both vehicles' probabilities at this temporal window
+        const combinedProb = Math.max(h1.probability, bestNeighborProb);
+        if (combinedProb > peakProb) {
+          peakProb = combinedProb;
+          peakFrame = h1.frame;
+        }
+      });
+
+      // Also scan from v2's perspective for frames v1 might not have
+      history2.forEach(h2 => {
+        if (h2.frame < overlapStart || h2.frame > overlapEnd) return;
+        if (h2.probability > peakProb) {
+          peakProb = h2.probability;
+          peakFrame = h2.frame;
+        }
+      });
+
+      if (peakFrame !== null && peakProb >= 0.25) {
+        const bothAccident = v1.is_accident_vehicle && v2.is_accident_vehicle;
+        const eitherAccident = v1.is_accident_vehicle || v2.is_accident_vehicle;
+
+        timelineEvents.push({
+          type: 'pair',
+          vehicles: [v1.vehicle_id, v2.vehicle_id],
+          probability: peakProb,
+          frame: peakFrame,
+          time: peakFrame / framesVal,
+          isAccident: bothAccident || (eitherAccident && peakProb >= 0.7),
+          severity: peakProb >= 0.8 ? 'critical' : peakProb >= 0.5 ? 'high' : peakProb >= 0.3 ? 'medium' : 'low',
+          v1Speed: v1.max_speed_kmh,
+          v2Speed: v2.max_speed_kmh,
+        });
+      }
+    }
+  }
+
+  // ── 3. Add confirmed accident event from global analysis data ──
+  if (analysisData?.accident_detected && analysisData?.accident_frame) {
+    const accidentVehicleIds = accidentVehicles.map(v => v.vehicle_id);
+    // Only add if not already captured by a pair event
+    const alreadyCovered = timelineEvents.some(
+      e => e.isAccident && Math.abs(e.frame - analysisData.accident_frame) < FRAME_WINDOW * 2
+    );
+    if (!alreadyCovered) {
+      timelineEvents.push({
+        type: 'system',
+        vehicles: accidentVehicleIds.length > 0 ? accidentVehicleIds : ['Unknown'],
+        probability: Math.max(...accidentVehicles.map(v => v.max_probability), 0.9),
+        frame: analysisData.accident_frame,
+        time: analysisData.accident_timestamp || (analysisData.accident_frame / framesVal),
+        isAccident: true,
+        severity: 'critical',
+      });
+    }
+  }
+
+  // ── 4. Add single-vehicle accident entries if not already in a pair ──
+  accidentVehicles.forEach(v => {
+    const alreadyInPair = timelineEvents.some(
+      e => e.vehicles.includes(v.vehicle_id) && e.isAccident
+    );
+    if (!alreadyInPair && v.accident_frame) {
+      timelineEvents.push({
+        type: 'single',
+        vehicles: [v.vehicle_id],
+        probability: v.max_probability,
+        frame: v.accident_frame,
+        time: v.accident_frame / framesVal,
+        isAccident: true,
+        severity: 'critical',
+      });
+    }
+  });
+
+  // Deduplicate close events (within 1s of each other with same vehicles)
+  const deduped = [];
+  timelineEvents.sort((a, b) => a.time - b.time);
+  timelineEvents.forEach(event => {
+    const isDuplicate = deduped.some(existing =>
+      Math.abs(existing.time - event.time) < 1.0 &&
+      existing.vehicles.some(v => event.vehicles.includes(v)) &&
+      Math.abs(existing.probability - event.probability) < 0.05
+    );
+    if (!isDuplicate) deduped.push(event);
+  });
+
+  if (deduped.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-800/30">
+        <div className="text-3xl mb-2">✅</div>
+        No high-risk close calls or accident interactions detected. Safe traffic flow observed.
+      </div>
+    );
+  }
+
+  const severityConfig = {
+    critical: { bg: 'bg-rose-100 dark:bg-rose-950/50', text: 'text-rose-700 dark:text-rose-400', border: 'border-rose-300 dark:border-rose-800', dot: 'bg-rose-500', label: 'CRITICAL' },
+    high:     { bg: 'bg-orange-100 dark:bg-orange-950/50', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-300 dark:border-orange-800', dot: 'bg-orange-500', label: 'HIGH' },
+    medium:   { bg: 'bg-amber-100 dark:bg-amber-950/50', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-300 dark:border-amber-800', dot: 'bg-amber-500', label: 'MODERATE' },
+    low:      { bg: 'bg-yellow-100 dark:bg-yellow-950/50', text: 'text-yellow-700 dark:text-yellow-400', border: 'border-yellow-300 dark:border-yellow-800', dot: 'bg-yellow-500', label: 'LOW' },
+  };
+
+  return (
+    <div className="space-y-0 relative">
+      {/* Vertical connector line */}
+      <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-rose-400 via-amber-400 to-green-400 dark:from-rose-600 dark:via-amber-600 dark:to-green-600 rounded-full" />
+
+      {deduped.map((event, idx) => {
+        const sev = severityConfig[event.severity] || severityConfig.medium;
+        const vehicleLabel = event.vehicles.length === 1
+          ? `🚗 Vehicle #${event.vehicles[0]}`
+          : `🚗 Vehicle #${event.vehicles[0]}  ↔  🚗 Vehicle #${event.vehicles[1]}`;
+
+        return (
+          <div key={`tl-${idx}`} className="relative pl-12 pb-6 last:pb-0">
+            {/* Timeline dot */}
+            <div className={`absolute left-2.5 top-2 w-5 h-5 rounded-full ${sev.dot} border-2 border-white dark:border-slate-900 shadow-lg z-10 flex items-center justify-center`}>
+              {event.isAccident && (
+                <span className={`absolute inset-0 rounded-full ${sev.dot} animate-ping opacity-40`} />
+              )}
+            </div>
+
+            {/* Event card */}
+            <div className={`${sev.bg} border ${sev.border} rounded-xl p-4 transition-all hover:shadow-lg hover:scale-[1.01]`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <span className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                  {vehicleLabel}
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold tracking-wider ${sev.text} ${sev.bg} border ${sev.border}`}>
+                  {sev.label}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                {/* Probability */}
+                <div className="flex flex-col">
+                  <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium mb-0.5">Collision Risk</span>
+                  <span className={`font-mono font-bold text-base ${sev.text}`}>
+                    {(event.probability * 100).toFixed(1)}%
+                  </span>
+                </div>
+                {/* Timestamp */}
+                <div className="flex flex-col">
+                  <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium mb-0.5">Timestamp</span>
+                  <span className="font-mono font-bold text-gray-700 dark:text-gray-200">
+                    {event.time.toFixed(1)}s
+                  </span>
+                </div>
+                {/* Frame */}
+                <div className="flex flex-col">
+                  <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium mb-0.5">Frame</span>
+                  <span className="font-mono font-bold text-gray-700 dark:text-gray-200">
+                    #{event.frame}
+                  </span>
+                </div>
+                {/* Status */}
+                <div className="flex flex-col">
+                  <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium mb-0.5">Impact Status</span>
+                  <span className="font-bold">
+                    {event.isAccident ? (
+                      <span className="text-rose-600 dark:text-rose-400">💥 Confirmed Impact</span>
+                    ) : event.severity === 'high' ? (
+                      <span className="text-orange-600 dark:text-orange-400">⚠️ Near Miss</span>
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-400">⚡ Close Encounter</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Speed info for pair events */}
+              {event.type === 'pair' && event.v1Speed != null && (
+                <div className="mt-2 pt-2 border-t border-gray-200/50 dark:border-slate-700/50 flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+                  <span>V#{event.vehicles[0]} peak: <strong className="text-gray-700 dark:text-gray-200">{event.v1Speed.toFixed(1)} km/h</strong></span>
+                  <span>V#{event.vehicles[1]} peak: <strong className="text-gray-700 dark:text-gray-200">{event.v2Speed.toFixed(1)} km/h</strong></span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState('upload');
   const [videoFile, setVideoFile] = useState(null);
@@ -21,6 +468,8 @@ function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const outputVideoRef = useRef(null);
+  const wsRef = useRef(null);
+  const captureIntervalRef = useRef(null);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -164,6 +613,70 @@ function App() {
     }
   };
 
+  const drawDetections = (vehiclesList, accidentDetected) => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Match canvas coordinate space to actual video resolution
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw vehicles
+    vehiclesList.forEach(vehicle => {
+      const [x1, y1, x2, y2] = vehicle.bbox;
+      const width = x2 - x1;
+      const height = y2 - y1;
+
+      // Select color
+      let color = '#22c55e'; // green
+      if (vehicle.color === 'red') {
+        color = '#ef4444'; // red
+      } else if (vehicle.color === 'blue') {
+        color = '#3b82f6'; // blue
+      }
+
+      // Draw bounding box
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x1, y1, width, height);
+
+      // Draw label background
+      ctx.fillStyle = color;
+      const label = `ID: ${vehicle.id} | ${vehicle.speed} km/h | ${Math.round(vehicle.probability * 100)}%`;
+      ctx.font = 'bold 16px sans-serif';
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillRect(x1 - 1, y1 - 25, textWidth + 10, 25);
+
+      // Draw text
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, x1 + 4, y1 - 7);
+    });
+
+    // Draw flashing accident alert banner if detected
+    if (accidentDetected) {
+      const flash = Math.floor(Date.now() / 500) % 2 === 0;
+      if (flash) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'; // semi-transparent red
+        ctx.fillRect(10, 10, canvas.width - 20, 60);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚠️ CRITICAL COLLISION WARNING / ACCIDENT DETECTED ⚠️', canvas.width / 2, 48);
+        ctx.textAlign = 'left'; // restore default
+      }
+    }
+  };
+
   const startLiveStream = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert('Camera access not supported');
@@ -176,19 +689,104 @@ function App() {
         videoRef.current.srcObject = stream;
         setIsLiveStream(true);
       }
+
+      // Initialize WebSocket connection dynamically matching backend host
+      const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
+      const ws = new WebSocket(`${WS_BASE_URL}/ws/live/`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WebSocket connected to live detection');
+        // Let the backend know we are streaming at 10 FPS
+        ws.send(JSON.stringify({ type: 'config', fps: 10.0 }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'detection') {
+            drawDetections(data.vehicles, data.accident_detected);
+          } else if (data.type === 'model_loaded') {
+            console.log('Live stream model loaded:', data.message);
+          } else if (data.type === 'error') {
+            console.error('Live stream backend error:', data.message);
+          }
+        } catch (err) {
+          console.error('Error parsing live stream message:', err);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected from live detection');
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket live detection error:', error);
+      };
+
+      // Set up capturing loop (draw feed to offscreen canvas and pipe JPEG compressed base64 over WS)
+      const offscreenCanvas = document.createElement('canvas');
+      const offscreenCtx = offscreenCanvas.getContext('2d');
+
+      captureIntervalRef.current = setInterval(() => {
+        if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+          const videoWidth = videoRef.current.videoWidth;
+          const videoHeight = videoRef.current.videoHeight;
+          if (videoWidth && videoHeight && offscreenCtx) {
+            offscreenCanvas.width = videoWidth;
+            offscreenCanvas.height = videoHeight;
+            offscreenCtx.drawImage(videoRef.current, 0, 0, videoWidth, videoHeight);
+            
+            // Compress image to JPEG format with 0.6 quality to maximize socket frame rate
+            const jpegData = offscreenCanvas.toDataURL('image/jpeg', 0.6);
+            
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({
+                type: 'frame',
+                frame: jpegData
+              }));
+            }
+          }
+        }
+      }, 100);
+
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert('Could not access camera');
+      console.error('Error accessing camera or starting live detection:', error);
+      alert('Could not start live detection');
+      stopLiveStream();
     }
   };
 
   const stopLiveStream = () => {
+    // Clear capture interval
+    if (captureIntervalRef.current) {
+      clearInterval(captureIntervalRef.current);
+      captureIntervalRef.current = null;
+    }
+
+    // Close WebSocket
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    // Stop all media stream tracks
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = videoRef.current.srcObject.getTracks();
       tracks.forEach(track => track.stop());
       videoRef.current.srcObject = null;
-      setIsLiveStream(false);
     }
+
+    // Clear overlay canvas
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    setIsLiveStream(false);
   };
 
   const VehicleCard = ({ vehicle }) => {
@@ -554,7 +1152,7 @@ function App() {
                 <div className="bg-red-50/80 dark:bg-red-900/30 backdrop-blur-xl border border-red-200 dark:border-red-800/50 rounded-2xl shadow-xl shadow-red-500/10 p-6 flex flex-col justify-between transition-colors duration-300">
                   <div>
                     <h2 className="text-xl font-bold mb-4 text-red-700 dark:text-red-400 flex items-center">
-                      <AlertTriangle className="mr-2" size={24} />
+                      <AlertTriangle className="mr-2 animate-bounce" size={24} />
                       Accident Event
                     </h2>
 
@@ -580,6 +1178,7 @@ function App() {
               )}
             </div>
 
+            {/* Analysis Summary */}
             <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-8 transition-colors duration-300">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Analysis Summary</h2>
               
@@ -604,10 +1203,13 @@ function App() {
                 </div>
               </div>
 
+              {/* Dynamic Speed Safety & Insights Cards */}
+              <SafetyInsights vehiclesList={vehicles} />
+
               <div className="flex flex-wrap gap-4 justify-start">
                 <button
                   onClick={() => downloadFile('video')}
-                  className="px-6 bg-rose-600 text-white py-3 rounded-lg font-semibold hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition-all"
+                  className="px-6 bg-rose-600 text-white py-3 rounded-lg font-semibold hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition-all shadow-sm"
                 >
                   <Download className="inline-block mr-2" size={20} />
                   Download Video
@@ -615,7 +1217,7 @@ function App() {
                 {analysisData.accident_detected && (
                   <button
                     onClick={() => downloadFile('clip')}
-                    className="px-6 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition-all"
+                    className="px-6 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition-all shadow-sm"
                   >
                     <Download className="inline-block mr-2" size={20} />
                     Download Accident Clip
@@ -623,12 +1225,19 @@ function App() {
                 )}
                 <button
                   onClick={() => downloadFile('csv')}
-                  className="px-6 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-all"
+                  className="px-6 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-all shadow-sm"
                 >
                   <Download className="inline-block mr-2" size={20} />
                   Download CSV
                 </button>
               </div>
+            </div>
+
+            {/* Close Calls Threat Intelligence Timeline */}
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-8 transition-colors duration-300">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Threat Intelligence Timeline</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Chronological breakdown of high-risk vehicle encounters, close calls, and impact events.</p>
+              <CloseCallTimeline vehiclesList={vehicles} fps={analysisData?.fps} analysisData={analysisData} />
             </div>
 
             {/* Charts Section */}
@@ -649,25 +1258,33 @@ function App() {
               </div>
 
               {selectedVehicle && (
-                <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
-                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-                    Vehicle #{selectedVehicle.vehicle_id} Details
-                    {selectedVehicle.is_accident_vehicle && (
-                      <span className="ml-3 bg-red-500 dark:bg-red-600 text-white px-3 py-1 rounded text-sm">
-                        ACCIDENT VEHICLE
-                      </span>
-                    )}
-                  </h3>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="font-semibold mb-3">Speed Over Time</h4>
-                      <SpeedChart vehicle={selectedVehicle} />
-                    </div>
+                <div className="lg:col-span-2 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 dark:border-slate-700/50 p-6 transition-colors duration-300 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center justify-between flex-wrap gap-2">
+                      <span>Vehicle #{selectedVehicle.vehicle_id} Details</span>
+                      {selectedVehicle.is_accident_vehicle && (
+                        <span className="bg-red-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold font-mono tracking-wider shadow-sm animate-pulse">
+                          ACCIDENT INVOLVED
+                        </span>
+                      )}
+                    </h3>
                     
-                    <div>
-                      <h4 className="font-semibold mb-3">Accident Probability Over Time</h4>
-                      <ProbabilityChart vehicle={selectedVehicle} />
+                    {/* Trajectory map space */}
+                    <div className="mb-8 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md rounded-xl p-5 border border-white/40 dark:border-slate-700/30">
+                      <h4 className="font-bold text-sm text-gray-600 dark:text-gray-300 mb-4 uppercase tracking-wider">📍 Trajectory Projection Space</h4>
+                      <TrajectoryMap vehicle={selectedVehicle} isDarkMode={isDarkMode} />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-bold text-sm text-gray-600 dark:text-gray-300 mb-3 uppercase tracking-wider">📈 Speed Profile</h4>
+                        <SpeedChart vehicle={selectedVehicle} />
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-bold text-sm text-gray-600 dark:text-gray-300 mb-3 uppercase tracking-wider">📉 Risk Probability Log</h4>
+                        <ProbabilityChart vehicle={selectedVehicle} />
+                      </div>
                     </div>
                   </div>
                 </div>
